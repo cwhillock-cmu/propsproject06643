@@ -1,0 +1,48 @@
+Plan: 
+Build a physical properties tool in python using the IDAES pure component Helmholtz EOS
+
+Goal: 
+Create a python package that calculates properties like entropy, density, heat capacity from the component, pressure, and temperature.
+The tool should be available as a python function or as a CLI tool. 
+
+Design decisions:
+1. performing calculations in the IDAES helmholtz EOS requires pyomo, and idaes-pse
+2. CLI framework will be argparse
+3. package layout will be src/ layout with pyproject.toml
+4. testing will be done with pytest
+
+References:
+1. I have created an example_property_calculation.py file to show how to use the IDAES framework.
+2. The IDAES helmholtz eos documentation (https://idaes-pse.readthedocs.io/en/stable/reference_guides/model_libraries/generic/property_models/helmholtz.html) lists what functions, variables, and expressions are available to calculate.
+
+Features:
+1. python function with input component, pressure, temperature and calculates an available property
+2. python function with input component, pressure, temperature, and outputs a dataframe with a subset (or all) of available properties
+3. ability to generate dataframes of isobaric or isothermal properties by specifying a pressure or temperature range (and fixing the other) and calculating a subset (or all) available properties
+4. CLI interface for feature 1
+5. CLI interface for feature 2, prints dataframe to terminal
+6. CLI interface for feature 3, prints dataframe to terminal
+
+Notes:
+Feature 2 is a generalization of feature 1 where the subset of output properties has only a single item.
+Feature 3 is a generalization of feature 2 where the iterated state variable has 1 value.
+Example output of feature 3 (isothermal properties):
+Pressure & Temperature & Density & Enthalpy  \\
+1        & 298         & 105     & 25.1      \\
+3        & 298         & 118     & 23.4      \\
+5        & 298         & 131     & 22.2      \\
+
+Anticipated issues:
+1. need extensive input validation
+2. IDAES calculations require IPOPT, need exhaustive error handling in case IPOPT fails
+
+Steps:
+1. generalize the example_property_calculation.py file and make it into a python function. 
+2. Implement input validation and write tests for feature 1.
+3. implement feature 2, add ability to pick output properties and return 1D dataframe
+4. Tests for feature 2
+5. Implement feature 3, add ability to calculate properties over a range of pressure/temperature and return 2D dataframe
+6. Tests for feature 3
+7. CLI entry point
+8. package structure and install
+9. README with documentation and usage examples
