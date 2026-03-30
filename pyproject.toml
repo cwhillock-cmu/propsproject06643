@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "idaes_props"
+version = "0.1.0"
+description = "Physical properties tool using IDAES pure component Helmholtz EOS"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "pyomo",
+    "idaes-pse",
+    "pandas",
+]
+
+[project.scripts]
+idaes-props = "idaes_props.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
