@@ -37,12 +37,20 @@ Anticipated issues:
 2. IDAES calculations require IPOPT, need exhaustive error handling in case IPOPT fails
 
 Steps:
-1. generalize the example_property_calculation.py file and make it into a python function. 
-2. Implement input validation and write tests for feature 1.
-3. implement feature 2, add ability to pick output properties and return 1D dataframe
-4. Tests for feature 2
-5. Implement feature 3, add ability to calculate properties over a range of pressure/temperature and return 2D dataframe
-6. Tests for feature 3
-7. CLI entry point
-8. package structure and install
-9. README with documentation and usage examples
+1. Project Setup & Initialization: Initialize `pyproject.toml` and `src/` layout. Implement a solver check for `ipopt` and set up Python logging.
+2. Core Property Engine: Generalize `example_property_calculation.py` into a core module using P-H `StateVars`. Implement component validation using the IDAES helper.
+3. Input Validation & Feature 1: Implement T-P input validation using Pyomo's units library. Implement single-point property calculation and write initial tests.
+4. Multi-Property Output (Feature 2): Implement retrieval of multiple property expressions (handling phase-indexed expressions) and returning a 1D DataFrame including `phase_id`.
+5. Batch Range Calculations (Feature 3): Implement an optimized range calculation using multiple state blocks in a single `ConcreteModel`.
+6. Testing & Validation: Add comprehensive tests for Feature 2 and the batching logic in Feature 3.
+7. CLI Implementation: Create the `argparse` CLI wrapper for all features.
+8. Documentation & Finalization: Finalize the README with usage examples and ensure the package is installable.
+
+Technical Implementation Notes:
+1. Add a check for solver step in the initialization to ensure IPOPT is on path.
+2. The tool will only support T-P input pairs and use the P-H StateVars.
+3. The IDAES framework includes a helper function that lists supported components, add a validation step that ensures the desired component is in that list.
+4. The output dataframe should include the phase_id so users know which state the properties represent, note that only some property expressions are indexed by phase.
+5. Step 5 should implement a batching approach with state blocks.
+6. Remove print statements and use python logging.
+7. Pyomo has a library for dealing with units, implement unit checking with that before trying pydantic or pint.
