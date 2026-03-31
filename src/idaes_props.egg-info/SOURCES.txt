@@ -1,0 +1,12 @@
+README.md
+pyproject.toml
+src/idaes_props/__init__.py
+src/idaes_props/calculator.py
+src/idaes_props/engine.py
+src/idaes_props.egg-info/PKG-INFO
+src/idaes_props.egg-info/SOURCES.txt
+src/idaes_props.egg-info/dependency_links.txt
+src/idaes_props.egg-info/entry_points.txt
+src/idaes_props.egg-info/requires.txt
+src/idaes_props.egg-info/top_level.txt
+tests/test_calculator.py

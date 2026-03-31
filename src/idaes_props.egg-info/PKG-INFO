@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: idaes_props
+Version: 0.1.0
+Summary: Physical properties tool using IDAES pure component Helmholtz EOS
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: pyomo
+Requires-Dist: idaes-pse
+Requires-Dist: pandas
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+
+# IDAES Properties
+
+A Python package and CLI tool for calculating physical properties using the IDAES pure component Helmholtz Equation of State (EOS).

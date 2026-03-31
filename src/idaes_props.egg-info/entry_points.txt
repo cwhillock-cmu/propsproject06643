@@ -1,0 +1,2 @@
+[console_scripts]
+idaes-props = idaes_props.cli:main

@@ -1,0 +1,6 @@
+pyomo
+idaes-pse
+pandas
+
+[dev]
+pytest
