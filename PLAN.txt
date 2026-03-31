@@ -40,8 +40,8 @@ Steps:
 [X] 1. Project Setup & Initialization: Initialize `pyproject.toml` and `src/` layout. Implement a solver check for `ipopt` and set up Python logging.
 [X] 2. Core Property Engine: Generalize `example_property_calculation.py` into a core module using P-H `StateVars`. Implement component validation using the IDAES helper.
 [X] 3. Input Validation & Feature 1: Implement T-P input validation using Pyomo's units library. Implement single-point property calculation and write initial tests.
-[ ] 4. Multi-Property Output (Feature 2): Implement retrieval of multiple property expressions (handling phase-indexed expressions) and returning a 1D DataFrame including `phase_id`.
-[ ] 5. Batch Range Calculations (Feature 3): Implement an optimized range calculation using multiple state blocks in a single `ConcreteModel`.
+[X] 4. Multi-Property Output (Feature 2): Implement retrieval of multiple property expressions (handling phase-indexed expressions) and returning a 1D DataFrame including `phase_id`.
+[X] 5. Batch Range Calculations (Feature 3): Implement an optimized range calculation using multiple state blocks in a single `ConcreteModel`.
 [ ] 6. Testing & Validation: Add comprehensive tests for Feature 2 and the batching logic in Feature 3.
 [ ] 7. CLI Implementation: Create the `argparse` CLI wrapper for all features.
 [ ] 8. Documentation & Finalization: Finalize the README with usage examples and ensure the package is installable.
