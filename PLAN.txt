@@ -57,3 +57,4 @@ Technical Implementation Notes:
 
 Post-Implementation Notes:
 1. Pyomo's standard `convert_value` and `convert` functions do not support absolute temperature offset conversions (like Celsius to Kelvin). We had to specifically use `pyomo.environ.units.convert_temp_C_to_K` to properly validate and convert Celsius inputs.
+2. IPOPT results for fixed state variables (like temperature) may have slight floating-point deviations (e.g., 298.1499999900664 instead of 298.15). Tests must use `pytest.approx` for these comparisons.
