@@ -338,6 +338,7 @@ def calculate_properties_range(
         setattr(model, constraint_name, pyo.Constraint(expr=sb.temperature == T_vals[i]))
         states.append(sb)
 
+    #model.obj=pyo.Objective(expr=sum(sb.enth_mol for sb in states))
     # Solve once for all state blocks
     success = engine.solve()
     if not success:

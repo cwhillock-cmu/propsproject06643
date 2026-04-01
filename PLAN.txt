@@ -42,9 +42,9 @@ Steps:
 [X] 3. Input Validation & Feature 1: Implement T-P input validation using Pyomo's units library. Implement single-point property calculation and write initial tests.
 [X] 4. Multi-Property Output (Feature 2): Implement retrieval of multiple property expressions (handling phase-indexed expressions) and returning a 1D DataFrame including `phase_id`.
 [X] 5. Batch Range Calculations (Feature 3): Implement an optimized range calculation using multiple state blocks in a single `ConcreteModel`.
-[ ] 6. Testing & Validation: Add comprehensive tests for Feature 2 and the batching logic in Feature 3.
-[ ] 7. CLI Implementation: Create the `argparse` CLI wrapper for all features.
-[ ] 8. Documentation & Finalization: Finalize the README with usage examples and ensure the package is installable.
+[X] 6. Testing & Validation: Add comprehensive tests for Feature 2 and the batching logic in Feature 3.
+[X] 7. CLI Implementation: Create the `argparse` CLI wrapper for all features.
+[X] 8. Documentation & Finalization: Finalize the README with usage examples and ensure the package is installable.
 
 Technical Implementation Notes:
 1. Add a check for solver step in the initialization to ensure IPOPT is on path.

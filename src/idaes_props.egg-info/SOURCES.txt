@@ -2,6 +2,7 @@ README.md
 pyproject.toml
 src/idaes_props/__init__.py
 src/idaes_props/calculator.py
+src/idaes_props/cli.py
 src/idaes_props/engine.py
 src/idaes_props.egg-info/PKG-INFO
 src/idaes_props.egg-info/SOURCES.txt

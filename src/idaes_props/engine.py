@@ -42,6 +42,7 @@ class PropertyEngine:
             amount_basis=amount_basis,
         )
         self.solver = pyo.SolverFactory('ipopt')
+        self.solver.options['linear_solver']='ma57'
 
     def solve(self) -> bool:
         """
@@ -50,6 +51,7 @@ class PropertyEngine:
         """
         try:
             logger.debug(f"Solving {self.component} property model...")
+            #self.model.pprint()
             results = self.solver.solve(self.model, tee=False)
             
             # Check solver termination condition
