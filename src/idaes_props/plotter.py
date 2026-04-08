@@ -210,7 +210,8 @@ def _plot_from_dataframe(df, x_column, y_columns, title, x_label, y_label, phase
     ax.set_title(title)
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
-    ax.legend()
+    if ax.get_legend_handles_labels()[1]:
+        ax.legend()
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
 

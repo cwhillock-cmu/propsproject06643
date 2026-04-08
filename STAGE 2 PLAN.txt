@@ -90,7 +90,7 @@ Steps:
       - Default output filename: {component}_{property}_{swept_var}.png
       - Save to working directory, print path to stdout
 
-[ ] 6. Write tests for plotter module
+[X] 6. Write tests for plotter module
       - Test plot_property returns a Figure with correct axes
       - Test phase-indexed property creates multiple lines
       - Test auto-discretization (num_points)
@@ -98,13 +98,13 @@ Steps:
       - Test error handling (invalid property, bad range)
       - Test savefig output
 
-[ ] 7. Write CLI integration tests for plot subcommand
+[X] 7. Write CLI integration tests for plot subcommand
       - Test plot command produces output file
       - Test --format flag variations
       - Test error cases (missing args, invalid component)
       - Add to test_cli.ps1
 
-[ ] 8. Documentation & examples
+[X] 8. Documentation & examples
       - Update README.md with plot API docs and CLI usage
       - Add example_plot.py showing Python API usage
       - Update CLAUDE.md with plotter module description

@@ -176,6 +176,57 @@ If one is a single value and the other is a list, the single value is broadcast.
 
 **Returns:** `pd.DataFrame` (one row per T-P point)
 
+### `plot_property`
+
+Plots a thermodynamic property over a temperature or pressure range. Returns a matplotlib `Figure` and the underlying `DataFrame`.
+
+```python
+from idaes_props.plotter import plot_property
+
+# Isobaric sweep: enthalpy of CO2 from 280 K to 320 K at 1 atm
+fig, df = plot_property(
+    "co2",
+    "enth_mol",
+    temperatures=(280, 320),   # (start, stop) tuple auto-discretized
+    pressures=101325,
+    num_points=30,
+)
+
+# Isothermal sweep with non-SI units, saved to file
+fig, df = plot_property(
+    "co2",
+    "dens_mass",
+    temperatures=25,
+    pressures=(1, 100),
+    num_points=50,
+    temperature_unit="C",
+    pressure_unit=units.bar,
+    amount_basis="mass",
+    save_path="co2_density.png",
+    show=False,
+)
+
+# Phase-indexed property: plots separate lines for Vap and Liq
+fig, df = plot_property(
+    "co2",
+    "visc_d_phase",
+    temperatures=(280, 450),
+    pressures=100,
+    pressure_unit=units.bar,
+)
+```
+
+**Parameters:** Same as `calculate_properties_range`, plus:
+- `num_points` (int) -- Number of points when auto-discretizing a `(start, stop)` range (default: 50)
+- `show` (bool) -- If True (default), display the plot with `plt.show()`
+- `save_path` (str or None) -- If provided, save the figure to this path
+- `dpi` (int) -- Resolution for saved figures (default: 150)
+- `fmt` (str) -- File format: `"png"` (default), `"svg"`, `"pdf"`
+
+**Returns:** `(matplotlib.figure.Figure, pd.DataFrame)`
+
+The figure can be further customized after return. Non-indexed properties are colored by phase (red=Vap, blue=Liq, purple=Mix). Phase-indexed properties are plotted as separate lines per phase.
+
 ## CLI Usage
 
 After installation, the `idaes-props` command is available. It has five subcommands.
@@ -214,6 +265,27 @@ idaes-props range co2 -T 280:320:10 -P 101325 --properties temperature pressure 
 # Isothermal sweep with non-SI units
 idaes-props range co2 -T 25 -P 1,2,3,4,5 --temperature-unit C --pressure-unit bar --properties temperature pressure dens_mass --basis mass
 ```
+
+### `plot` -- Plot a Property Over a Range
+
+Generates a plot of a property over a temperature or pressure sweep and saves it to a file.
+
+```bash
+# Isobaric sweep: enthalpy vs temperature
+idaes-props plot co2 enth_mol -T 280:320:10 -P 101325
+
+# Isothermal sweep with units, saved as SVG
+idaes-props plot co2 dens_mass -T 25 -P 1,5,10,50,100 --temperature-unit C --pressure-unit bar --basis mass --format svg --output co2_density.svg
+
+# Phase-indexed property
+idaes-props plot co2 visc_d_phase -T 280:450:10 -P 10000000
+```
+
+| Option | Values | Default | Description |
+|---|---|---|---|
+| `--output` | filename | `{component}_{property}.{format}` | Output file path |
+| `--format` | `png`, `svg`, `pdf` | `png` | Output file format |
+| `--dpi` | integer | `150` | Resolution for raster formats |
 
 ### `list-components` -- List Supported Components
 
