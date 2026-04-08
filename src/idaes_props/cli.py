@@ -7,6 +7,7 @@ from idaes_props.calculator import (
     calculate_multiple_properties,
     calculate_properties_range,
 )
+from idaes_props.plotter import plot_property
 from idaes_props.engine import registered_components, validate_component
 from pyomo.environ import units as pyunits
 
@@ -111,6 +112,27 @@ def build_parser():
     rng.add_argument("--properties", nargs="*", default=None,
                      help="Property names to calculate. Omit for all available properties.")
 
+    # --- plot ---
+    plot = subparsers.add_parser("plot", help="Plot a property over a T or P range.")
+    plot.add_argument("component", help="Pure component name (e.g. co2, h2o).")
+    plot.add_argument("property", help="Property name to plot (e.g. enth_mol, visc_d_phase).")
+    plot.add_argument("-T", "--temperature", required=True,
+                      help="Temperature: single value, comma-separated list, or start:stop:step range.")
+    plot.add_argument("-P", "--pressure", required=True,
+                      help="Pressure: single value, comma-separated list, or start:stop:step range.")
+    plot.add_argument("--temperature-unit", default="K",
+                      help="Temperature unit: K or C (default: K).")
+    plot.add_argument("--pressure-unit", default="Pa",
+                      help="Pressure unit: Pa, kPa, MPa, bar, atm, psi (default: Pa).")
+    plot.add_argument("--basis", default="mole", choices=["mole", "mass"],
+                      help="Amount basis (default: mole).")
+    plot.add_argument("--output", default=None,
+                      help="Output filename. Default: {component}_{property}.png")
+    plot.add_argument("--format", default="png", choices=["png", "svg", "pdf"],
+                      help="Output file format (default: png).")
+    plot.add_argument("--dpi", type=int, default=150,
+                      help="Resolution in DPI (default: 150).")
+
     # --- list-components ---
     subparsers.add_parser("list-components", help="List supported components.")
 
@@ -167,6 +189,38 @@ def cmd_range(args):
     print(df.to_string(index=False))
 
 
+def cmd_plot(args):
+    t_unit = _resolve_temperature_unit(args.temperature_unit)
+    p_unit = _resolve_pressure_unit(args.pressure_unit)
+    temperatures = _parse_float_list(args.temperature)
+    pressures = _parse_float_list(args.pressure)
+
+    # Use list directly if multiple values, scalar if single
+    if len(temperatures) == 1:
+        temperatures = temperatures[0]
+    if len(pressures) == 1:
+        pressures = pressures[0]
+
+    output = args.output
+    if output is None:
+        output = f"{args.component}_{args.property}.{args.format}"
+
+    fig, df = plot_property(
+        component=args.component,
+        property_name=args.property,
+        temperatures=temperatures,
+        pressures=pressures,
+        temperature_unit=t_unit,
+        pressure_unit=p_unit,
+        amount_basis=args.basis,
+        show=False,
+        save_path=output,
+        dpi=args.dpi,
+        fmt=args.format,
+    )
+    print(f"Plot saved to {output}")
+
+
 def cmd_list_components(args):
     for c in sorted(registered_components()):
         print(c)
@@ -198,6 +252,8 @@ def main():
             cmd_multi(args)
         elif args.command == "range":
             cmd_range(args)
+        elif args.command == "plot":
+            cmd_plot(args)
         elif args.command == "list-components":
             cmd_list_components(args)
         elif args.command == "list-properties":

@@ -77,14 +77,14 @@ Steps:
       - Color/marker coding by phase_id for non-indexed properties
       - Auto-generated title, axis labels
 
-[ ] 4. Implement plot helper and styling
+[X] 4. Implement plot helper and styling
       - Create internal _plot_from_dataframe() helper
       - Handle phase-indexed column detection (columns ending in _Vap, _Liq)
       - Phase-colored line segments for non-indexed properties
       - Legend, grid, sensible defaults
       - Support returning Figure without showing (show=False)
 
-[ ] 5. Add CLI plot subcommand (Feature 2)
+[X] 5. Add CLI plot subcommand (Feature 2)
       - New subcommand: idaes-props plot <component> -T <range> -P <value> <property> [--output filename] [--format png|svg|pdf] [--dpi 150]
       - Reuse existing _parse_float_list() for range parsing
       - Default output filename: {component}_{property}_{swept_var}.png
