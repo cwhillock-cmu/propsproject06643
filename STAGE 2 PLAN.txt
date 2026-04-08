@@ -68,7 +68,7 @@ Steps:
       - When True, catch solver failures per T-P point, log warning, skip row
       - Add tests for skip_failures behavior (one bad point in a range)
 
-[ ] 3. Implement core plotting function (Feature 1)
+[X] 3. Implement core plotting function (Feature 1)
       - Implement plot_property() in plotter.py
       - Internally calls calculate_properties_range() with skip_failures=True
       - Auto-generates linspace from (start, stop, num_points) if given a 2-element tuple/list for temperatures or pressures
