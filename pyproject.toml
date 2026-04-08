@@ -12,6 +12,8 @@ dependencies = [
     "pyomo",
     "idaes-pse",
     "pandas",
+    "matplotlib",
+    "numpy",
 ]
 
 [project.scripts]

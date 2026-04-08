@@ -7,6 +7,8 @@ Description-Content-Type: text/markdown
 Requires-Dist: pyomo
 Requires-Dist: idaes-pse
 Requires-Dist: pandas
+Requires-Dist: matplotlib
+Requires-Dist: numpy
 Provides-Extra: dev
 Requires-Dist: pytest; extra == "dev"
 

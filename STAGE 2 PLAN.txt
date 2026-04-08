@@ -58,7 +58,7 @@ Suggested function signature:
     ) -> tuple[plt.Figure, pd.DataFrame]:
 
 Steps:
-[ ] 1. Add matplotlib dependency & create plotter module
+[X] 1. Add matplotlib dependency & create plotter module
       - Add matplotlib to pyproject.toml dependencies
       - Create src/idaes_props/plotter.py with stub functions
       - Design function signature for plot_property()
