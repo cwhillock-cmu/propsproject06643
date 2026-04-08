@@ -1,0 +1,24 @@
+Plan:
+Create thermodynamic property plots and diagrams.
+
+Goals:
+Extend the idaes-props package to calculate and create plots of thermodynamic properties as functions of pressure and temperature.
+Feature should be available to the python functions and CLI tool.
+
+Design Decisions:
+1. Method of plotting is TBD
+
+Features:
+1. python function with inputs of a pressure range and constant temperature or a temperature range and constant pressure, component, and an available property - outputs and displays a plot of the available property over the range.
+2. CLI interface for feature 1 that saves the plot as a file in the working directory
+
+Anticipated issues/notes:
+1. How to handle an error in one or more of the calculations for the plot
+2. Is the user expected to handle discretization of the range?
+3. How to handle when the user specifies a range over a phase change
+4. How to handle when the user specifies a property that is indexed by phase - the user should not have to specify phase, phase should be detected and the correct value plotted.
+5. Need to build in a way that will be easily generalizable for future features (multiple properties, components, surface plots)
+
+Steps:
+[ ] 1. 
+
