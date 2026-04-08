@@ -6,19 +6,105 @@ Extend the idaes-props package to calculate and create plots of thermodynamic pr
 Feature should be available to the python functions and CLI tool.
 
 Design Decisions:
-1. Method of plotting is TBD
+1. Plotting library: matplotlib
+   - Standard for scientific Python; already the default for anyone using IDAES/Pyomo
+   - Lightweight dependency compared to plotly
+   - Easy to save to PNG/SVG/PDF for the CLI feature
+   - Add as a required dependency in pyproject.toml
+2. API design: return the figure object
+   - The Python function should return a matplotlib Figure so users can further customize it (add annotations, change style, compose subplots)
+   - Optionally call plt.show() based on a `show` flag
+   - Also return the underlying DataFrame so the user gets both data and visualization in one call
+3. Discretization: handled internally
+   - User provides a (start, stop) range and optional num_points (default 50)
+   - Internally use numpy.linspace to generate the sweep values
+   - CLI reuses existing start:stop:step syntax from the `range` subcommand
+4. Core plotting helper: _plot_from_dataframe()
+   - Internal helper that takes a DataFrame and column names to plot
+   - Makes it trivial to later add multi-property plots, multi-component overlays, or 3D surface plots
 
 Features:
-1. python function with inputs of a pressure range and constant temperature or a temperature range and constant pressure, component, and an available property - outputs and displays a plot of the available property over the range.
-2. CLI interface for feature 1 that saves the plot as a file in the working directory
+1. Python function with inputs of a pressure range and constant temperature (or a temperature range and constant pressure), component, and an available property - outputs and displays a plot of the available property over the range. Returns (Figure, DataFrame).
+2. CLI interface for feature 1 that saves the plot as a file in the working directory.
 
 Anticipated issues/notes:
-1. How to handle an error in one or more of the calculations for the plot
-2. Is the user expected to handle discretization of the range?
-3. How to handle when the user specifies a range over a phase change
-4. How to handle when the user specifies a property that is indexed by phase - the user should not have to specify phase, phase should be detected and the correct value plotted.
-5. Need to build in a way that will be easily generalizable for future features (multiple properties, components, surface plots)
+1. Calculation errors mid-range: Add a `skip_failures=False` parameter to calculate_properties_range(). When True, catch solver failures per T-P point, log a warning, and skip the row. The plot function calls it with skip_failures=True so one bad point doesn't kill the whole plot.
+2. Discretization: The user should NOT be expected to discretize manually. Provide num_points (default 50) for the Python API. CLI reuses existing start:stop:step parsing. Internally use numpy.linspace.
+3. Phase boundaries: Plot all points. Use the phase_id column to color or style markers/line segments differently (Vap/Liq/Mix). This communicates phase transitions visually without special logic. Legend entries make it self-documenting.
+4. Phase-indexed properties: Plot each phase as a separate series (line) on the same axes. The existing DataFrame already flattens these as prop_Vap and prop_Liq columns - iterate over matching columns.
+5. Generalizability: Structure the core as _plot_from_dataframe(df, x_column, y_columns, ...) so future features (multiple properties, components, surface plots) are straightforward.
+
+Additional ideas:
+1. Auto-label axes with units - derive from column name and amount basis.
+2. Phase-colored scatter option - each point colored by phase, useful for exploring phase boundaries.
+3. Auto-generated title - e.g., "enth_mol of CO2 (isobaric, P=101325 Pa)".
+4. --format CLI flag - allow PNG (default), SVG, PDF output.
+5. --dpi CLI flag - for publication-quality output.
+
+Suggested function signature:
+    def plot_property(
+        component: str,
+        property_name: str,
+        temperatures,          # float, list, or (start, stop) tuple
+        pressures,             # float, list, or (start, stop) tuple
+        num_points: int = 50,  # used when temperatures/pressures is a 2-tuple
+        temperature_unit=pyunits.K,
+        pressure_unit=pyunits.Pa,
+        amount_basis="mole",
+        show: bool = True,
+        save_path: str = None, # if provided, saves figure to this path
+        dpi: int = 150,
+        fmt: str = "png",
+    ) -> tuple[plt.Figure, pd.DataFrame]:
 
 Steps:
-[ ] 1. 
+[ ] 1. Add matplotlib dependency & create plotter module
+      - Add matplotlib to pyproject.toml dependencies
+      - Create src/idaes_props/plotter.py with stub functions
+      - Design function signature for plot_property()
 
+[ ] 2. Add failure tolerance to calculate_properties_range()
+      - Add skip_failures=False parameter to calculate_properties_range()
+      - When True, catch solver failures per T-P point, log warning, skip row
+      - Add tests for skip_failures behavior (one bad point in a range)
+
+[ ] 3. Implement core plotting function (Feature 1)
+      - Implement plot_property() in plotter.py
+      - Internally calls calculate_properties_range() with skip_failures=True
+      - Auto-generates linspace from (start, stop, num_points) if given a 2-element tuple/list for temperatures or pressures
+      - X-axis: the swept variable (T or P); Y-axis: the property
+      - Phase-indexed properties: separate line per phase
+      - Color/marker coding by phase_id for non-indexed properties
+      - Auto-generated title, axis labels
+
+[ ] 4. Implement plot helper and styling
+      - Create internal _plot_from_dataframe() helper
+      - Handle phase-indexed column detection (columns ending in _Vap, _Liq)
+      - Phase-colored line segments for non-indexed properties
+      - Legend, grid, sensible defaults
+      - Support returning Figure without showing (show=False)
+
+[ ] 5. Add CLI plot subcommand (Feature 2)
+      - New subcommand: idaes-props plot <component> -T <range> -P <value> <property> [--output filename] [--format png|svg|pdf] [--dpi 150]
+      - Reuse existing _parse_float_list() for range parsing
+      - Default output filename: {component}_{property}_{swept_var}.png
+      - Save to working directory, print path to stdout
+
+[ ] 6. Write tests for plotter module
+      - Test plot_property returns a Figure with correct axes
+      - Test phase-indexed property creates multiple lines
+      - Test auto-discretization (num_points)
+      - Test isobaric and isothermal modes
+      - Test error handling (invalid property, bad range)
+      - Test savefig output
+
+[ ] 7. Write CLI integration tests for plot subcommand
+      - Test plot command produces output file
+      - Test --format flag variations
+      - Test error cases (missing args, invalid component)
+      - Add to test_cli.ps1
+
+[ ] 8. Documentation & examples
+      - Update README.md with plot API docs and CLI usage
+      - Add example_plot.py showing Python API usage
+      - Update CLAUDE.md with plotter module description
