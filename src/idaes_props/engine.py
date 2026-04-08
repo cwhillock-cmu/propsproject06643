@@ -61,6 +61,6 @@ class PropertyEngine:
                 return False
                 
             return True
-        except (ValueError, pyo.ApplicationError, PyomoException) as e:
+        except (ValueError, PyomoException) as e:
             logger.error(f"Solver encountered an error during solve: {e}")
             return False

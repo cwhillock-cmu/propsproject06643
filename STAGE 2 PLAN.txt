@@ -63,7 +63,7 @@ Steps:
       - Create src/idaes_props/plotter.py with stub functions
       - Design function signature for plot_property()
 
-[ ] 2. Add failure tolerance to calculate_properties_range()
+[X] 2. Add failure tolerance to calculate_properties_range()
       - Add skip_failures=False parameter to calculate_properties_range()
       - When True, catch solver failures per T-P point, log warning, skip row
       - Add tests for skip_failures behavior (one bad point in a range)

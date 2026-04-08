@@ -264,7 +264,8 @@ def calculate_properties_range(
     property_names: list = None,
     temperature_unit=pyunits.K,
     pressure_unit=pyunits.Pa,
-    amount_basis=AmountBasis.MOLE
+    amount_basis=AmountBasis.MOLE,
+    skip_failures: bool = False,
 ) -> pd.DataFrame:
     """
     Feature 3: Calculates properties over a range of temperatures or pressures.
@@ -274,6 +275,9 @@ def calculate_properties_range(
     Both can also be lists of equal length for arbitrary T-P pairs.
 
     Uses multiple state blocks in a single ConcreteModel for efficiency.
+    When skip_failures is True, each T-P point is solved individually so that
+    solver failures at one point are logged and skipped rather than aborting
+    the entire calculation.
     """
     amount_basis = _resolve_amount_basis(amount_basis)
 
@@ -315,7 +319,40 @@ def calculate_properties_range(
         if p <= 0:
             raise ValueError(f"Pressure at index {i} must be greater than 0 Pascal (got {p}).")
 
-    # Build a single model with multiple state blocks
+    if skip_failures:
+        # Solve each point individually so failures can be skipped
+        rows = []
+        for i in range(n):
+            try:
+                engine = PropertyEngine(component, amount_basis=amount_basis)
+                model = engine.model
+                model.obj = pyo.Objective(expr=0)
+
+                sb = model.properties.build_state_block(
+                    defined_state=True, has_phase_equilibrium=True
+                )
+                model.stateblock = sb
+
+                if amount_basis == AmountBasis.MOLE:
+                    sb.flow_mol.fix(1)
+                else:
+                    sb.flow_mass.fix(1)
+
+                sb.pressure.fix(P_vals[i])
+                model.T_constraint = pyo.Constraint(expr=sb.temperature == T_vals[i])
+
+                success = engine.solve()
+                if not success:
+                    raise RuntimeError("Solver did not converge")
+
+                rows.append(_extract_state_data(sb, property_names, amount_basis))
+            except Exception as e:
+                logger.warning(
+                    f"Skipping T-P point (T={T_vals[i]} K, P={P_vals[i]} Pa): {e}"
+                )
+        return pd.DataFrame(rows)
+
+    # Default: batch solve with multiple state blocks in a single model
     engine = PropertyEngine(component, amount_basis=amount_basis)
     model = engine.model
     model.obj = pyo.Objective(expr=0)
@@ -338,8 +375,6 @@ def calculate_properties_range(
         setattr(model, constraint_name, pyo.Constraint(expr=sb.temperature == T_vals[i]))
         states.append(sb)
 
-    #model.obj=pyo.Objective(expr=sum(sb.enth_mol for sb in states))
-    # Solve once for all state blocks
     success = engine.solve()
     if not success:
         raise RuntimeError(
@@ -347,7 +382,6 @@ def calculate_properties_range(
             f"Check that all T-P points are within valid ranges."
         )
 
-    # Extract results from each state block
     rows = []
     for sb in states:
         rows.append(_extract_state_data(sb, property_names, amount_basis))
