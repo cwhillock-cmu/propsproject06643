@@ -168,3 +168,85 @@ def test_plot_property_unit_conversion():
     )
     assert len(df) == 3
     plt.close(fig)
+
+
+# --- multi-component tests ---
+
+def test_plot_multi_component():
+    """Multiple components on the same plot."""
+    fig, df = plot_property(
+        ["co2", "butane"], "dens_mol",
+        temperatures=[280, 300, 320],
+        pressures=101325,
+        show=False,
+    )
+    assert isinstance(fig, matplotlib.figure.Figure)
+    assert "component" in df.columns
+    assert set(df["component"].unique()) == {"co2", "butane"}
+    assert len(df) == 6  # 3 points x 2 components
+    ax = fig.axes[0]
+    labels = [t.get_text() for t in ax.get_legend().get_texts()]
+    assert "co2" in labels
+    assert "butane" in labels
+    assert len(ax.get_lines()) == 2
+    plt.close(fig)
+
+
+def test_plot_multi_component_phase_indexed():
+    """Phase-indexed property with multiple components produces line per component+phase."""
+    fig, df = plot_property(
+        ["co2", "butane"], "dens_mol_phase",
+        temperatures=[280, 300, 320],
+        pressures=101325,
+        show=False,
+    )
+    ax = fig.axes[0]
+    labels = [t.get_text() for t in ax.get_legend().get_texts()]
+    assert "co2 Vap" in labels
+    assert "co2 Liq" in labels
+    assert "butane Vap" in labels
+    assert "butane Liq" in labels
+    assert len(ax.get_lines()) == 4
+    plt.close(fig)
+
+
+def test_plot_multi_component_title():
+    """Title includes all component names."""
+    fig, df = plot_property(
+        ["co2", "propane"], "enth_mol",
+        temperatures=[280, 320],
+        pressures=101325,
+        show=False,
+    )
+    title = fig.axes[0].get_title()
+    assert "co2" in title
+    assert "propane" in title
+    plt.close(fig)
+
+
+def test_plot_multi_component_save(tmp_path):
+    """Multi-component plot saves to file."""
+    out = str(tmp_path / "multi.png")
+    fig, df = plot_property(
+        ["co2", "butane"], "enth_mol",
+        temperatures=[280, 300, 320],
+        pressures=101325,
+        show=False,
+        save_path=out,
+    )
+    assert os.path.exists(out)
+    assert os.path.getsize(out) > 0
+    plt.close(fig)
+
+
+def test_plot_single_component_string_still_works():
+    """Passing a single string (not list) still works as before."""
+    fig, df = plot_property(
+        "co2", "enth_mol",
+        temperatures=[280, 300],
+        pressures=101325,
+        show=False,
+    )
+    assert "component" in df.columns
+    assert list(df["component"].unique()) == ["co2"]
+    plt.close(fig)

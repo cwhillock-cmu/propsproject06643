@@ -214,10 +214,36 @@ fig, df = plot_property(
     pressures=100,
     pressure_unit=units.bar,
 )
+
+# Multiple components on one plot
+fig, df = plot_property(
+    ["co2", "butane"],
+    "dens_mol",
+    temperatures=(280, 400),
+    pressures=101325,
+    num_points=30,
+)
+
+# Multiple components with a phase-indexed property
+fig, df = plot_property(
+    ["co2", "butane"],
+    "dens_mol_phase",
+    temperatures=[280, 300, 320],
+    pressures=101325,
+    save_path="comparison.png",
+    show=False,
+)
 ```
 
-**Parameters:** Same as `calculate_properties_range`, plus:
+**Parameters:**
+- `component` (str or list of str) -- Pure component name, or a list of components to overlay on the same plot
+- `property_name` (str) -- Property to plot on the y-axis
+- `temperatures` -- Fixed value (float), explicit list, or `(start, stop)` tuple for auto-discretization
+- `pressures` -- Fixed value (float), explicit list, or `(start, stop)` tuple for auto-discretization
 - `num_points` (int) -- Number of points when auto-discretizing a `(start, stop)` range (default: 50)
+- `temperature_unit` -- `pyunits.K` (default), or `"C"` for Celsius
+- `pressure_unit` -- `pyunits.Pa` (default), or any Pyomo pressure unit
+- `amount_basis` -- `"mole"` (default) or `"mass"`
 - `show` (bool) -- If True (default), display the plot with `plt.show()`
 - `save_path` (str or None) -- If provided, save the figure to this path
 - `dpi` (int) -- Resolution for saved figures (default: 150)
@@ -225,11 +251,13 @@ fig, df = plot_property(
 
 **Returns:** `(matplotlib.figure.Figure, pd.DataFrame)`
 
-The figure can be further customized after return. Non-indexed properties are colored by phase (red=Vap, blue=Liq, purple=Mix). Phase-indexed properties are plotted as separate lines per phase.
+When multiple components are provided, the returned DataFrame includes a `component` column. Each component is plotted with a distinct color. For phase-indexed properties with multiple components, line style distinguishes phase (solid=Vap, dashed=Liq) while color distinguishes component.
+
+For a single component, non-indexed properties are colored by phase (red=Vap, blue=Liq, purple=Mix). Phase-indexed properties are plotted as separate lines per phase.
 
 ## CLI Usage
 
-After installation, the `idaes-props` command is available. It has five subcommands.
+After installation, the `idaes-props` command is available. It has six subcommands.
 
 ### `single` -- Calculate a Single Property
 
@@ -268,7 +296,7 @@ idaes-props range co2 -T 25 -P 1,2,3,4,5 --temperature-unit C --pressure-unit ba
 
 ### `plot` -- Plot a Property Over a Range
 
-Generates a plot of a property over a temperature or pressure sweep and saves it to a file.
+Generates a plot of a property over a temperature or pressure sweep and saves it to a file. Supports overlaying multiple components on the same plot.
 
 ```bash
 # Isobaric sweep: enthalpy vs temperature
@@ -279,10 +307,17 @@ idaes-props plot co2 dens_mass -T 25 -P 1,5,10,50,100 --temperature-unit C --pre
 
 # Phase-indexed property
 idaes-props plot co2 visc_d_phase -T 280:450:10 -P 10000000
+
+# Multiple components on one plot
+idaes-props plot co2 dens_mol -T 280:400:20 -P 101325 --components butane
+
+# Three components compared
+idaes-props plot co2 enth_mol -T 280:400:20 -P 101325 --components butane propane --output comparison.png
 ```
 
 | Option | Values | Default | Description |
 |---|---|---|---|
+| `--components` | space-separated names | none | Additional components to overlay |
 | `--output` | filename | `{component}_{property}.{format}` | Output file path |
 | `--format` | `png`, `svg`, `pdf` | `png` | Output file format |
 | `--dpi` | integer | `150` | Resolution for raster formats |

@@ -11,9 +11,15 @@ logger = logging.getLogger(__name__)
 
 PHASE_COLORS = {"Vap": "tab:red", "Liq": "tab:blue", "Mix": "tab:purple"}
 
+# Distinct colors for multi-component plots
+_COMPONENT_COLORS = [
+    "tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple",
+    "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan",
+]
+
 
 def plot_property(
-    component: str,
+    component,
     property_name: str,
     temperatures,
     pressures,
@@ -30,8 +36,9 @@ def plot_property(
 
     Parameters
     ----------
-    component : str
-        Pure component name (e.g. "co2", "h2o").
+    component : str or list of str
+        Pure component name (e.g. "co2") or a list of components to overlay
+        on the same plot (e.g. ["co2", "butane"]).
     property_name : str
         Property to plot on the y-axis (e.g. "enth_mol", "dens_mol_phase").
     temperatures : float, list, or 2-tuple
@@ -60,8 +67,15 @@ def plot_property(
     Returns
     -------
     (matplotlib.figure.Figure, pandas.DataFrame)
-        The figure and the underlying data.
+        The figure and the underlying data. When multiple components are
+        provided, the DataFrame includes a ``component`` column.
     """
+    # Normalize component to a list
+    if isinstance(component, str):
+        components = [component]
+    else:
+        components = list(component)
+
     # Expand (start, stop) tuples into linspace arrays
     temperatures = _expand_range(temperatures, num_points)
     pressures = _expand_range(pressures, num_points)
@@ -82,7 +96,6 @@ def plot_property(
         fixed_val = temperatures
         sweep_label = f"isothermal, T={fixed_val}"
     else:
-        # Both are lists or both are scalars — default to temperature as x
         x_column = "temperature"
         t_unit_label = "C" if temperature_unit == "C" else "K"
         x_label = f"Temperature ({t_unit_label})"
@@ -93,27 +106,33 @@ def plot_property(
     if x_column == "pressure" and "temperature" not in calc_props:
         calc_props.append("temperature")
 
-    # Calculate data
-    df = calculate_properties_range(
-        component,
-        temperatures=temperatures,
-        pressures=pressures,
-        property_names=calc_props,
-        temperature_unit=temperature_unit,
-        pressure_unit=pressure_unit,
-        amount_basis=amount_basis,
-        skip_failures=True,
-    )
+    # Calculate data for each component
+    dfs = []
+    for comp in components:
+        df = calculate_properties_range(
+            comp,
+            temperatures=temperatures,
+            pressures=pressures,
+            property_names=calc_props,
+            temperature_unit=temperature_unit,
+            pressure_unit=pressure_unit,
+            amount_basis=amount_basis,
+            skip_failures=True,
+        )
+        df["component"] = comp
+        dfs.append(df)
 
-    if df.empty:
+    combined_df = pd.concat(dfs, ignore_index=True)
+
+    if combined_df.empty:
         raise RuntimeError(
-            f"All T-P points failed to solve for {component}. "
+            f"All T-P points failed to solve for {components}. "
             "Check that the range is within valid bounds."
         )
 
-    # Identify y-columns: phase-indexed properties produce prop_Vap / prop_Liq columns
-    y_columns = [c for c in df.columns if c == property_name or c.startswith(property_name + "_")]
-    # Exclude the bare property name if phase-indexed columns exist
+    # Identify y-columns from the first non-empty result
+    sample = dfs[0] if not dfs[0].empty else combined_df
+    y_columns = [c for c in sample.columns if c == property_name or c.startswith(property_name + "_")]
     phase_cols = [c for c in y_columns if c != property_name]
     if phase_cols:
         y_columns = phase_cols
@@ -124,13 +143,21 @@ def plot_property(
             "Check that the property name is valid and matches the amount basis."
         )
 
-    title = f"{property_name} of {component} ({sweep_label})"
+    comp_label = ", ".join(components)
+    title = f"{property_name} of {comp_label} ({sweep_label})"
     y_label = property_name
 
-    fig = _plot_from_dataframe(
-        df, x_column, y_columns, title, x_label, y_label,
-        phase_ids=df.get("phase_id"),
-    )
+    multi_component = len(components) > 1
+
+    if multi_component:
+        fig = _plot_multi_component(
+            combined_df, x_column, y_columns, components, title, x_label, y_label,
+        )
+    else:
+        fig = _plot_from_dataframe(
+            combined_df, x_column, y_columns, title, x_label, y_label,
+            phase_ids=combined_df.get("phase_id"),
+        )
 
     if save_path:
         fig.savefig(save_path, format=fmt, dpi=dpi, bbox_inches="tight")
@@ -139,7 +166,7 @@ def plot_property(
     if show:
         plt.show()
 
-    return fig, df
+    return fig, combined_df
 
 
 def _expand_range(value, num_points: int):
@@ -156,7 +183,7 @@ def _expand_range(value, num_points: int):
 
 
 def _plot_from_dataframe(df, x_column, y_columns, title, x_label, y_label, phase_ids=None):
-    """Create a matplotlib figure from a DataFrame.
+    """Create a matplotlib figure from a DataFrame (single component).
 
     Parameters
     ----------
@@ -186,7 +213,6 @@ def _plot_from_dataframe(df, x_column, y_columns, title, x_label, y_label, phase
     if len(y_columns) > 1:
         # Multiple y-columns = phase-indexed property; one line per phase
         for col in y_columns:
-            # Extract phase suffix (e.g. "Vap" from "dens_mol_phase_Vap")
             phase = col.rsplit("_", 1)[-1]
             color = PHASE_COLORS.get(phase, None)
             ax.plot(x, df[col], marker="o", markersize=3, label=phase, color=color)
@@ -212,6 +238,67 @@ def _plot_from_dataframe(df, x_column, y_columns, title, x_label, y_label, phase
     ax.set_ylabel(y_label)
     if ax.get_legend_handles_labels()[1]:
         ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+
+    return fig
+
+
+def _plot_multi_component(df, x_column, y_columns, components, title, x_label, y_label):
+    """Create a matplotlib figure with one series per component.
+
+    For phase-indexed properties, each component+phase combination gets its
+    own line (e.g. "co2 Vap", "butane Vap"). For non-indexed properties,
+    each component is a separate line.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Combined data with a ``component`` column.
+    x_column : str
+        Column name for the x-axis.
+    y_columns : list of str
+        Column name(s) for the y-axis.
+    components : list of str
+        Component names in plot order.
+    title : str
+        Plot title.
+    x_label : str
+        X-axis label.
+    y_label : str
+        Y-axis label.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+    """
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    is_phase_indexed = len(y_columns) > 1
+    linestyles = {"Vap": "-", "Liq": "--", "Mix": ":"}
+
+    for i, comp in enumerate(components):
+        comp_df = df[df["component"] == comp]
+        color = _COMPONENT_COLORS[i % len(_COMPONENT_COLORS)]
+        x = comp_df[x_column]
+
+        if is_phase_indexed:
+            for col in y_columns:
+                phase = col.rsplit("_", 1)[-1]
+                ls = linestyles.get(phase, "-")
+                ax.plot(
+                    x, comp_df[col],
+                    marker="o", markersize=3, color=color, linestyle=ls,
+                    label=f"{comp} {phase}",
+                )
+        else:
+            col = y_columns[0]
+            ax.plot(x, comp_df[col], marker="o", markersize=3, color=color, label=comp)
+
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.legend()
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
 

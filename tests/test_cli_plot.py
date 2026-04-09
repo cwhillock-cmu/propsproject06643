@@ -70,3 +70,47 @@ def test_plot_invalid_component(tmp_path):
 def test_plot_missing_args():
     result = run_cli("plot", "co2", "enth_mol")
     assert result.returncode != 0
+
+
+# --- multi-component CLI tests ---
+
+def test_plot_multi_component(tmp_path):
+    out = str(tmp_path / "out.png")
+    result = run_cli(
+        "plot", "co2", "dens_mol", "-T", "280,300,320", "-P", "101325",
+        "--components", "butane", "--output", out,
+    )
+    assert result.returncode == 0
+    assert os.path.exists(out)
+    assert os.path.getsize(out) > 0
+
+
+def test_plot_multi_component_three(tmp_path):
+    out = str(tmp_path / "out.png")
+    result = run_cli(
+        "plot", "co2", "enth_mol", "-T", "280,300,320", "-P", "101325",
+        "--components", "butane", "propane", "--output", out,
+    )
+    assert result.returncode == 0
+    assert os.path.exists(out)
+
+
+def test_plot_multi_component_default_filename(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = run_cli(
+        "plot", "co2", "enth_mol", "-T", "280,300,320", "-P", "101325",
+        "--components", "butane",
+    )
+    assert result.returncode == 0
+    expected = tmp_path / "co2_butane_enth_mol.png"
+    assert expected.exists()
+
+
+def test_plot_multi_component_phase_indexed(tmp_path):
+    out = str(tmp_path / "out.png")
+    result = run_cli(
+        "plot", "co2", "dens_mol_phase", "-T", "280,300,320", "-P", "101325",
+        "--components", "butane", "--output", out,
+    )
+    assert result.returncode == 0
+    assert os.path.exists(out)

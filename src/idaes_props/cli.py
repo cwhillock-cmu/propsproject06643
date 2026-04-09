@@ -114,8 +114,10 @@ def build_parser():
 
     # --- plot ---
     plot = subparsers.add_parser("plot", help="Plot a property over a T or P range.")
-    plot.add_argument("component", help="Pure component name (e.g. co2, h2o).")
+    plot.add_argument("component", help="Primary component name (e.g. co2).")
     plot.add_argument("property", help="Property name to plot (e.g. enth_mol, visc_d_phase).")
+    plot.add_argument("--components", nargs="*", default=None,
+                      help="Additional components to overlay (e.g. --components butane propane).")
     plot.add_argument("-T", "--temperature", required=True,
                       help="Temperature: single value, comma-separated list, or start:stop:step range.")
     plot.add_argument("-P", "--pressure", required=True,
@@ -201,12 +203,19 @@ def cmd_plot(args):
     if len(pressures) == 1:
         pressures = pressures[0]
 
+    # Build component list: primary + any extras from --components
+    components = [args.component]
+    if args.components:
+        components.extend(args.components)
+    component = components[0] if len(components) == 1 else components
+
     output = args.output
     if output is None:
-        output = f"{args.component}_{args.property}.{args.format}"
+        comp_str = "_".join(components)
+        output = f"{comp_str}_{args.property}.{args.format}"
 
     fig, df = plot_property(
-        component=args.component,
+        component=component,
         property_name=args.property,
         temperatures=temperatures,
         pressures=pressures,
