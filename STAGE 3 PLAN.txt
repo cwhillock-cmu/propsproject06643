@@ -69,7 +69,7 @@ Steps:
       - Update tests that currently pass --format; remove or switch to extension-based
       - Update README.md plot section
 
-[ ] 2. Add CSV/JSON export to multi and range CLI subcommands
+[X] 2. Add CSV/JSON export to multi and range CLI subcommands
       - Add --output argument to multi and range subparsers
       - Create _write_dataframe() helper: infer format from extension (.csv / .json), call df.to_csv / df.to_json
       - Unknown extension => clear error
@@ -77,14 +77,14 @@ Steps:
       - Add tests for CSV and JSON output from both subcommands
       - Update README.md CLI section
 
-[ ] 3. Add saturation curve computation helper
+[X] 3. Add saturation curve computation helper
       - Implement _compute_saturation_curve(component, amount_basis, num_points) in plotter.py
       - Sweep temperature from triple-point to critical-point; query pressure_sat at each
       - Returns (T_array, P_array) and optionally critical point (T_c, P_c)
       - Use skip_failures-style error handling since triple/critical limits can be fuzzy
       - Add unit test: curve is monotonic in T, starts near triple, ends near critical
 
-[ ] 4. Integrate saturation overlay into plot_property
+[X] 4. Integrate saturation overlay into plot_property
       - Add saturation=False kwarg to plot_property
       - Detect axes: only overlay when (x=temperature, y=pressure) or (x=pressure, y=temperature) or when y is pressure_sat
       - If axes don't match, log warning and skip overlay (don't raise)
@@ -92,14 +92,14 @@ Steps:
       - For multi-component plots: one dashed curve per component, matching the component's color
       - Add --saturation flag to CLI plot subcommand
 
-[ ] 5. Tests for saturation overlay
+[X] 5. Tests for saturation overlay
       - Test saturation curve appears on a P-T plot (check for extra line with "saturation" label)
       - Test critical point marker placed correctly
       - Test overlay is skipped with warning when axes don't support it
       - Test multi-component overlay draws one curve per component
       - CLI test for --saturation flag
 
-[ ] 6. Documentation
+[X] 6. Documentation
       - Update README.md: add --saturation and --output docs for plot, multi, range
       - Add example_saturation.py to tests/ showing a P-T plot with saturation curve
       - Note the breaking change: --format removed, use extension instead

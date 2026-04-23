@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 import logging
 
@@ -42,6 +43,31 @@ def _resolve_temperature_unit(name):
             f"Unknown temperature unit '{name}'. Choose from: {list(_TEMPERATURE_UNITS.keys())}"
         )
     return _TEMPERATURE_UNITS[name]
+
+
+_DATAFRAME_EXPORT_FORMATS = {"csv", "json"}
+
+
+def _write_dataframe(df, path):
+    """Write *df* to *path*, inferring format from the file extension.
+
+    Supported extensions: .csv, .json. Unknown extensions raise ValueError.
+    """
+    ext = os.path.splitext(path)[1].lower().lstrip(".")
+    if not ext:
+        raise ValueError(
+            f"Output path '{path}' has no file extension. "
+            f"Include one of: {sorted(_DATAFRAME_EXPORT_FORMATS)}."
+        )
+    if ext == "csv":
+        df.to_csv(path, index=False)
+    elif ext == "json":
+        df.to_json(path, orient="records", indent=2)
+    else:
+        raise ValueError(
+            f"Unsupported export format '.{ext}'. "
+            f"Must be one of: {sorted(_DATAFRAME_EXPORT_FORMATS)}."
+        )
 
 
 def _parse_float_list(s):
@@ -95,6 +121,9 @@ def build_parser():
     add_common_args(multi)
     multi.add_argument("--properties", nargs="*", default=None,
                        help="Property names to calculate. Omit for all available properties.")
+    multi.add_argument("--output", default=None,
+                       help="Write DataFrame to file instead of stdout. "
+                            "Format is inferred from extension (.csv or .json).")
 
     # --- range ---
     rng = subparsers.add_parser("range", help="Calculate properties over a T or P range.")
@@ -111,6 +140,9 @@ def build_parser():
                      help="Amount basis (default: mole).")
     rng.add_argument("--properties", nargs="*", default=None,
                      help="Property names to calculate. Omit for all available properties.")
+    rng.add_argument("--output", default=None,
+                     help="Write DataFrame to file instead of stdout. "
+                          "Format is inferred from extension (.csv or .json).")
 
     # --- plot ---
     plot = subparsers.add_parser("plot", help="Plot a property over a T or P range.")
@@ -134,6 +166,10 @@ def build_parser():
                            "Default filename: {component}_{property}.png")
     plot.add_argument("--dpi", type=int, default=150,
                       help="Resolution in DPI (default: 150).")
+    plot.add_argument("--saturation", action="store_true",
+                      help="Overlay the liquid-vapor saturation curve and mark "
+                           "the critical point. Only valid for P-T plots "
+                           "(y=pressure, pressure_sat, or pressure_crit).")
 
     # --- list-components ---
     subparsers.add_parser("list-components", help="List supported components.")
@@ -171,7 +207,11 @@ def cmd_multi(args):
         pressure_unit=p_unit,
         amount_basis=args.basis,
     )
-    print(df.to_string(index=False))
+    if args.output:
+        _write_dataframe(df, args.output)
+        print(f"Wrote {len(df)} row(s) to {args.output}")
+    else:
+        print(df.to_string(index=False))
 
 
 def cmd_range(args):
@@ -188,7 +228,11 @@ def cmd_range(args):
         pressure_unit=p_unit,
         amount_basis=args.basis,
     )
-    print(df.to_string(index=False))
+    if args.output:
+        _write_dataframe(df, args.output)
+        print(f"Wrote {len(df)} row(s) to {args.output}")
+    else:
+        print(df.to_string(index=False))
 
 
 def cmd_plot(args):
@@ -225,6 +269,7 @@ def cmd_plot(args):
         show=False,
         save_path=output,
         dpi=args.dpi,
+        saturation=args.saturation,
     )
     print(f"Plot saved to {output}")
 

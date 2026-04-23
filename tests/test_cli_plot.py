@@ -121,3 +121,26 @@ def test_plot_multi_component_phase_indexed(tmp_path):
     )
     assert result.returncode == 0
     assert os.path.exists(out)
+
+
+# --- saturation overlay CLI ---
+
+def test_plot_saturation_flag(tmp_path):
+    out = str(tmp_path / "sat.png")
+    result = run_cli(
+        "plot", "co2", "pressure_sat", "-T", "240:300:10", "-P", "101325",
+        "--saturation", "--output", out,
+    )
+    assert result.returncode == 0
+    assert os.path.exists(out)
+
+
+def test_plot_saturation_wrong_axes(tmp_path):
+    """--saturation with non-P-T plot should still succeed (overlay skipped silently)."""
+    out = str(tmp_path / "sat_wrong.png")
+    result = run_cli(
+        "plot", "co2", "enth_mol", "-T", "280:320:10", "-P", "101325",
+        "--saturation", "--output", out,
+    )
+    assert result.returncode == 0
+    assert os.path.exists(out)

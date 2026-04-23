@@ -233,6 +233,17 @@ fig, df = plot_property(
     save_path="comparison.png",
     show=False,
 )
+
+# P-T phase diagram with the saturation curve and critical point overlay
+fig, df = plot_property(
+    "co2",
+    "pressure_sat",
+    temperatures=(220, 304),
+    pressures=101325,
+    saturation=True,
+    save_path="co2_pt_diagram.png",
+    show=False,
+)
 ```
 
 **Parameters:**
@@ -248,12 +259,33 @@ fig, df = plot_property(
 - `save_path` (str or None) -- If provided, save the figure to this path
 - `dpi` (int) -- Resolution for saved figures (default: 150)
 - `fmt` (str or None) -- File format: `"png"`, `"svg"`, or `"pdf"`. If `None` (default), inferred from the `save_path` extension.
+- `saturation` (bool) -- If True, overlay the liquid-vapor saturation curve and mark the critical point. Only meaningful for P-T plots (y in `pressure`, `pressure_sat`, `pressure_crit`); skipped with a warning otherwise.
 
 **Returns:** `(matplotlib.figure.Figure, pd.DataFrame)`
 
 When multiple components are provided, the returned DataFrame includes a `component` column. Each component is plotted with a distinct color. For phase-indexed properties with multiple components, line style distinguishes phase (solid=Vap, dashed=Liq) while color distinguishes component.
 
 For a single component, non-indexed properties are colored by phase (red=Vap, blue=Liq, purple=Mix). Phase-indexed properties are plotted as separate lines per phase.
+
+### `_compute_saturation_curve` -- Raw Saturation-Curve Data
+
+Lower-level helper that returns the temperature-pressure coordinates of a component's liquid-vapor saturation curve, plus its critical point. Useful if you want the data without a plot (custom styling, CSV export, classifying T-P points as sub- or super-critical).
+
+```python
+from idaes_props.plotter import _compute_saturation_curve
+
+curve = _compute_saturation_curve("co2", num_points=50)
+print(curve["t_crit"])        # 304.13 K
+print(curve["p_crit"])        # 7377300 Pa
+print(curve["temperatures"])  # np.ndarray of K (monotonically increasing)
+print(curve["pressures"])     # np.ndarray of Pa (monotonically increasing)
+```
+
+**Parameters:** `component`, `amount_basis` (`"mole"` default), `num_points` (default 50), `t_min` (default `0.55 * T_crit`), `t_max` (default `0.995 * T_crit`).
+
+**Returns:** `dict` with keys `"temperatures"`, `"pressures"`, `"t_crit"`, `"p_crit"`.
+
+The curve is the locus of T-P points where liquid and vapor phases coexist in equilibrium, bounded below by the triple point and above by the critical point. The defaults clip the endpoints away from the critical singularity; points below the triple point are silently skipped when IPOPT cannot converge there. The returned arrays will typically be shorter than `num_points` — this is expected.
 
 ## CLI Usage
 
@@ -277,6 +309,12 @@ idaes-props multi co2 -T 298.15 -P 101325 --properties temperature pressure enth
 
 # All available properties
 idaes-props multi co2 -T 298.15 -P 101325
+
+# Export to CSV instead of printing
+idaes-props multi co2 -T 298.15 -P 101325 --output result.csv
+
+# Export to JSON
+idaes-props multi co2 -T 298.15 -P 101325 --output result.json
 ```
 
 ### `range` -- Calculate Properties Over a Range
@@ -292,7 +330,12 @@ idaes-props range co2 -T 280:320:10 -P 101325 --properties temperature pressure 
 
 # Isothermal sweep with non-SI units
 idaes-props range co2 -T 25 -P 1,2,3,4,5 --temperature-unit C --pressure-unit bar --properties temperature pressure dens_mass --basis mass
+
+# Export sweep to CSV
+idaes-props range co2 -T 280:320:10 -P 101325 --properties temperature pressure enth_mol --output sweep.csv
 ```
+
+For both `multi` and `range`, `--output <filename>` writes the DataFrame to disk instead of stdout. The format is inferred from the extension: `.csv` or `.json`. Any other extension is rejected with a clear error.
 
 ### `plot` -- Plot a Property Over a Range
 
@@ -313,6 +356,12 @@ idaes-props plot co2 dens_mol -T 280:400:20 -P 101325 --components butane
 
 # Three components compared
 idaes-props plot co2 enth_mol -T 280:400:20 -P 101325 --components butane propane --output comparison.png
+
+# P-T phase diagram with saturation curve and critical point
+idaes-props plot co2 pressure_sat -T 220:304:2 -P 101325 --saturation --output co2_pt_diagram.png
+
+# Multi-component P-T comparison with saturation curves
+idaes-props plot co2 pressure_sat -T 220:420:10 -P 101325 --components butane --saturation --output pt_compare.png
 ```
 
 | Option | Values | Default | Description |
@@ -320,6 +369,22 @@ idaes-props plot co2 enth_mol -T 280:400:20 -P 101325 --components butane propan
 | `--components` | space-separated names | none | Additional components to overlay |
 | `--output` | filename with extension (`.png`, `.svg`, `.pdf`) | `{component}_{property}.png` | Output file path; format is inferred from the extension |
 | `--dpi` | integer | `150` | Resolution for raster formats |
+| `--saturation` | flag | off | Overlay the liquid-vapor saturation curve and mark the critical point. Only meaningful for P-T plots (see below). |
+
+#### `--saturation`: Overlaying the Phase Boundary
+
+The `--saturation` flag draws the liquid-vapor saturation curve on top of the sweep and marks the critical point with an `X`. Use it when you want to see the phase boundary on a P-T diagram.
+
+**When it applies:** the flag takes effect only when the plot's axes form a pressure-vs-temperature diagram. Concretely, that means sweeping temperature (`-T` is a range, `-P` is a single value) with the property set to `pressure`, `pressure_sat`, or `pressure_crit`. Typical usage plots `pressure_sat` against `-T`.
+
+For any other combination (e.g. `enth_mol` vs T, or density vs P) the flag is accepted silently but the overlay is skipped — a warning is logged explaining why, and the rest of the plot is unaffected.
+
+**What's drawn:**
+- A dashed curve tracing vapor pressure vs temperature from roughly `0.55 * T_crit` up to just below `T_crit` (the near-critical region is clipped because the solver degrades there)
+- An `X` marker at the critical point itself
+- In multi-component plots (`--components ...`), one dashed curve and one critical-point marker per component, each colored to match its data series
+
+**How to read the result:** above the saturation curve the fluid is liquid, below it is vapor, and to the right of the critical point marker it is supercritical with no meaningful phase distinction. If your sweep crosses the curve, you can see exactly where the component transitions between phases. Points below the triple point are automatically skipped, so short curves are expected for components where the triple point is far from the critical point.
 
 ### `list-components` -- List Supported Components
 
@@ -376,6 +441,14 @@ Properties ending in `_mol` are available when `amount_basis="mole"`, and those 
 # Python unit tests
 pytest
 
-# CLI integration tests (PowerShell)
-powershell -ExecutionPolicy Bypass -File test_cli.ps1
+# With coverage (matches CI)
+pytest --cov=idaes_props --cov-report=term
 ```
+
+Continuous integration runs on every push and PR to `main` via `.github/workflows/tests.yml` on `windows-latest` with Python 3.13.
+
+## Recent Changes
+
+- **`plot --format` removed.** The plot CLI subcommand no longer accepts `--format`; pass the full filename (with extension) to `--output` instead. Supported extensions: `.png`, `.svg`, `.pdf`. Unknown extensions now produce a clear error.
+- **`multi` and `range` gained `--output`.** Export DataFrames to `.csv` or `.json` by filename; omit the flag to keep the existing print-to-stdout behavior.
+- **`plot` gained `--saturation`.** Overlays the liquid-vapor saturation curve and critical-point marker on P-T plots. See the `plot` subcommand docs above.

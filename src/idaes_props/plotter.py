@@ -4,9 +4,11 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pyomo.environ as pyo
 from pyomo.environ import units as pyunits
 
-from idaes_props.calculator import calculate_properties_range
+from idaes_props.calculator import _resolve_amount_basis, calculate_properties_range
+from idaes_props.engine import PropertyEngine
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,96 @@ def _infer_format(save_path: str) -> str:
     return ext
 
 
+def _get_critical_point(component, amount_basis="mole"):
+    """Return (T_crit, P_crit) for a component in SI units (K, Pa).
+
+    Queries the IDAES Helmholtz parameter block by solving a trivial
+    state block at a safe T-P point and reading temperature_crit and
+    pressure_crit.
+    """
+    basis = _resolve_amount_basis(amount_basis)
+    engine = PropertyEngine(component, amount_basis=basis)
+    model = engine.model
+    model.obj = pyo.Objective(expr=0)
+    model.sb = model.properties.build_state_block(
+        defined_state=True, has_phase_equilibrium=True
+    )
+    if basis.name == "MOLE":
+        model.sb.flow_mol.fix(1)
+    else:
+        model.sb.flow_mass.fix(1)
+    # Use a generic valid state for initialization
+    model.sb.pressure.fix(101325)
+    model.T_constraint = pyo.Constraint(expr=model.sb.temperature == 300)
+    if not engine.solve():
+        raise RuntimeError(f"Could not solve initial state for {component} to read critical point.")
+    return pyo.value(model.sb.temperature_crit), pyo.value(model.sb.pressure_crit)
+
+
+def _compute_saturation_curve(component, amount_basis="mole", num_points: int = 50,
+                              t_min: float = None, t_max: float = None):
+    """Compute the liquid-vapor saturation curve for a component.
+
+    Sweeps temperature and extracts pressure_sat at each T. Failed points
+    (e.g. near the critical singularity or below the triple point) are
+    skipped via skip_failures=True.
+
+    Parameters
+    ----------
+    component : str
+        Pure component name.
+    amount_basis : str or AmountBasis
+        Used to build the underlying state blocks. Does not affect the curve.
+    num_points : int
+        Number of points on the curve.
+    t_min : float or None
+        Lower temperature bound in K. Defaults to 0.55 * T_crit.
+    t_max : float or None
+        Upper temperature bound in K. Defaults to 0.995 * T_crit
+        (slightly below critical to avoid the singularity).
+
+    Returns
+    -------
+    dict with keys:
+        "temperatures" : np.ndarray of K
+        "pressures"    : np.ndarray of Pa (pressure_sat at each T)
+        "t_crit"       : float, critical temperature (K)
+        "p_crit"       : float, critical pressure (Pa)
+    """
+    t_crit, p_crit = _get_critical_point(component, amount_basis=amount_basis)
+    if t_min is None:
+        t_min = 0.55 * t_crit
+    if t_max is None:
+        t_max = 0.995 * t_crit
+
+    t_vals = np.linspace(t_min, t_max, num_points)
+
+    # Use a sub-critical pressure so the state block is valid; the actual
+    # P value doesn't matter because pressure_sat is a function of T only.
+    p_init = p_crit * 0.5
+
+    df = calculate_properties_range(
+        component,
+        temperatures=list(t_vals),
+        pressures=p_init,
+        property_names=["temperature", "pressure_sat"],
+        amount_basis=amount_basis,
+        skip_failures=True,
+    )
+
+    if df.empty:
+        raise RuntimeError(
+            f"Could not compute any saturation points for {component}."
+        )
+
+    return {
+        "temperatures": df["temperature"].to_numpy(),
+        "pressures": df["pressure_sat"].to_numpy(),
+        "t_crit": t_crit,
+        "p_crit": p_crit,
+    }
+
+
 def plot_property(
     component,
     property_name: str,
@@ -53,6 +145,7 @@ def plot_property(
     save_path: str = None,
     dpi: int = 150,
     fmt: str = None,
+    saturation: bool = False,
 ) -> tuple:
     """Plot a thermodynamic property over a temperature or pressure range.
 
@@ -86,6 +179,11 @@ def plot_property(
     fmt : str or None
         File format when saving ("png", "svg", "pdf"). If None (default),
         the format is inferred from the *save_path* extension.
+    saturation : bool
+        If True, overlay the liquid-vapor saturation curve and mark the
+        critical point. Only meaningful for P-T plots (x=temperature and
+        y=pressure, y=pressure_sat, or y=pressure_crit). For other axis
+        combinations a warning is logged and no overlay is drawn.
 
     Returns
     -------
@@ -180,6 +278,12 @@ def plot_property(
         fig = _plot_from_dataframe(
             combined_df, x_column, y_columns, title, x_label, y_label,
             phase_ids=combined_df.get("phase_id"),
+        )
+
+    if saturation:
+        _overlay_saturation(
+            fig.axes[0], components, x_column, property_name, amount_basis,
+            multi_component=multi_component,
         )
 
     if save_path:
@@ -327,3 +431,46 @@ def _plot_multi_component(df, x_column, y_columns, components, title, x_label, y
     fig.tight_layout()
 
     return fig
+
+
+# Y-axis properties for which a saturation overlay makes physical sense
+_SATURATION_Y_PROPS = {"pressure", "pressure_sat", "pressure_crit"}
+
+
+def _overlay_saturation(ax, components, x_column, property_name, amount_basis,
+                        multi_component=False):
+    """Overlay the liquid-vapor saturation curve on a P-T plot.
+
+    Only draws if the axes make sense: x=temperature and y is a pressure-like
+    property. Otherwise logs a warning and returns without drawing.
+    """
+    if x_column != "temperature" or property_name not in _SATURATION_Y_PROPS:
+        logger.warning(
+            "Saturation overlay skipped: only applies to plots with "
+            "x=temperature and y in %s (got x=%s, y=%s).",
+            sorted(_SATURATION_Y_PROPS), x_column, property_name,
+        )
+        return
+
+    for i, comp in enumerate(components):
+        try:
+            curve = _compute_saturation_curve(comp, amount_basis=amount_basis)
+        except Exception as e:
+            logger.warning(f"Could not compute saturation curve for {comp}: {e}")
+            continue
+
+        color = _COMPONENT_COLORS[i % len(_COMPONENT_COLORS)] if multi_component else "black"
+        label = f"{comp} saturation" if multi_component else "saturation"
+        crit_label = f"{comp} critical point" if multi_component else "critical point"
+
+        ax.plot(
+            curve["temperatures"], curve["pressures"],
+            linestyle="--", color=color, linewidth=1.5, label=label,
+        )
+        ax.plot(
+            curve["t_crit"], curve["p_crit"],
+            marker="X", color=color, markersize=10, label=crit_label,
+        )
+
+    # Refresh legend to include new entries
+    ax.legend()
