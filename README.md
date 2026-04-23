@@ -1,3 +1,4 @@
+[![tests](https://github.com/cwhillock-cmu/propsproject06643/actions/workflows/tests.yml/badge.svg)](https://github.com/cwhillock-cmu/propsproject06643/actions/workflows/tests.yml)
 # IDAES Properties
 
 A Python package and CLI tool for calculating thermodynamic properties of pure components using the IDAES Helmholtz Equation of State (EOS).
