@@ -134,10 +134,52 @@ def test_plot_property_save_file(tmp_path):
 
 
 def test_plot_property_save_svg(tmp_path):
+    """Extension-based format inference: .svg save_path -> SVG output."""
     out = str(tmp_path / "test.svg")
     fig, df = plot_property(
         "co2", "enth_mol",
         temperatures=[280, 300, 320],
+        pressures=101325,
+        show=False,
+        save_path=out,
+    )
+    assert os.path.exists(out)
+    plt.close(fig)
+
+
+def test_plot_property_save_missing_extension(tmp_path):
+    """save_path without an extension should raise a clear error."""
+    out = str(tmp_path / "noext")
+    with pytest.raises(ValueError, match="no file extension"):
+        plot_property(
+            "co2", "enth_mol",
+            temperatures=[280, 300],
+            pressures=101325,
+            show=False,
+            save_path=out,
+        )
+
+
+def test_plot_property_save_unsupported_extension(tmp_path):
+    """save_path with an unsupported extension should raise a clear error."""
+    out = str(tmp_path / "test.jpg")
+    with pytest.raises(ValueError, match="Unsupported plot format"):
+        plot_property(
+            "co2", "enth_mol",
+            temperatures=[280, 300],
+            pressures=101325,
+            show=False,
+            save_path=out,
+        )
+
+
+def test_plot_property_explicit_fmt_wins(tmp_path):
+    """Explicit fmt argument takes precedence over extension inference."""
+    # Filename ends in .png but we force SVG — matplotlib honors explicit format
+    out = str(tmp_path / "forced_svg.png")
+    fig, df = plot_property(
+        "co2", "enth_mol",
+        temperatures=[280, 300],
         pressures=101325,
         show=False,
         save_path=out,

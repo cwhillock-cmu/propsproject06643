@@ -129,9 +129,9 @@ def build_parser():
     plot.add_argument("--basis", default="mole", choices=["mole", "mass"],
                       help="Amount basis (default: mole).")
     plot.add_argument("--output", default=None,
-                      help="Output filename. Default: {component}_{property}.png")
-    plot.add_argument("--format", default="png", choices=["png", "svg", "pdf"],
-                      help="Output file format (default: png).")
+                      help="Output filename, including extension. "
+                           "Supported formats: .png (default), .svg, .pdf. "
+                           "Default filename: {component}_{property}.png")
     plot.add_argument("--dpi", type=int, default=150,
                       help="Resolution in DPI (default: 150).")
 
@@ -212,7 +212,7 @@ def cmd_plot(args):
     output = args.output
     if output is None:
         comp_str = "_".join(components)
-        output = f"{comp_str}_{args.property}.{args.format}"
+        output = f"{comp_str}_{args.property}.png"
 
     fig, df = plot_property(
         component=component,
@@ -225,7 +225,6 @@ def cmd_plot(args):
         show=False,
         save_path=output,
         dpi=args.dpi,
-        fmt=args.format,
     )
     print(f"Plot saved to {output}")
 

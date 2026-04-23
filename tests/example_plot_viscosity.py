@@ -3,7 +3,7 @@ from idaes_props.plotter import plot_property
 
 fig, df = plot_property(
     "co2",
-    "enth_mol",
+    "visc_d_phase",
     #temperatures=(280, 450),
     #pressures=74,
     temperatures=298,

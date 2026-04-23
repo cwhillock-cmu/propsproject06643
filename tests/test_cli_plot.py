@@ -30,16 +30,23 @@ def test_plot_default_filename(tmp_path, monkeypatch):
 
 def test_plot_svg_format(tmp_path):
     out = str(tmp_path / "out.svg")
-    result = run_cli("plot", "co2", "enth_mol", "-T", "280,300,320", "-P", "101325", "--format", "svg", "--output", out)
+    result = run_cli("plot", "co2", "enth_mol", "-T", "280,300,320", "-P", "101325", "--output", out)
     assert result.returncode == 0
     assert os.path.exists(out)
 
 
 def test_plot_pdf_format(tmp_path):
     out = str(tmp_path / "out.pdf")
-    result = run_cli("plot", "co2", "enth_mol", "-T", "280,300,320", "-P", "101325", "--format", "pdf", "--output", out)
+    result = run_cli("plot", "co2", "enth_mol", "-T", "280,300,320", "-P", "101325", "--output", out)
     assert result.returncode == 0
     assert os.path.exists(out)
+
+
+def test_plot_unsupported_extension(tmp_path):
+    out = str(tmp_path / "out.jpg")
+    result = run_cli("plot", "co2", "enth_mol", "-T", "280,300", "-P", "101325", "--output", out)
+    assert result.returncode != 0
+    assert "Unsupported" in result.stderr or "extension" in result.stderr
 
 
 def test_plot_with_units(tmp_path):

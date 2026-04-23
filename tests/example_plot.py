@@ -27,7 +27,6 @@ fig2, df2 = plot_property(
     pressure_unit=pyunits.bar,
     amount_basis="mass",
     save_path="co2_dens_mass_isothermal.svg",
-    fmt="svg",
 )
 print("Isothermal sweep:")
 print(df2[["pressure", "phase_id", "dens_mass"]].head())

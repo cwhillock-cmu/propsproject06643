@@ -1,0 +1,106 @@
+Plan:
+Three focused extensions: saturation curve overlay, CSV export for DataFrame outputs, and simplified plot output file handling.
+
+Goals:
+1. Let users visualize where a property sweep crosses the saturation boundary by overlaying the saturation curve on plots.
+2. Let users export any DataFrame-returning command (multi, range) to CSV instead of printing to terminal.
+3. Remove the redundant --format flag on the plot command by inferring the file format from the --output filename extension.
+
+Design Decisions:
+1. Saturation overlay
+   - Expose as `--saturation` CLI flag and `saturation=False` kwarg on plot_property()
+   - Only meaningful when the y-axis property is pressure or when x-axis is temperature — skip silently with a warning if plot axes don't make sense (e.g. isobaric enth_mol sweep)
+   - Generate the curve by sweeping temperature from triple-point to critical-point and calling a saturation property (pressure_sat or temperature_sat, both already in available_properties.csv)
+   - Render as a dashed black line with label "saturation"
+   - Critical point marked with a distinct marker (e.g. black X) when in view
+2. CSV export
+   - Add `--output` flag to `multi` and `range` subcommands
+   - If --output is given, write DataFrame to CSV and print path; otherwise keep current behavior (print to terminal)
+   - Infer CSV format from .csv extension; support .json as alternative (via DataFrame.to_json)
+   - No change to the Python API — DataFrame.to_csv() is already trivial for users
+3. Plot output format inference
+   - Deprecate/remove `--format` CLI flag on `plot` subcommand
+   - If --output has a recognized extension (.png, .svg, .pdf), use that
+   - If --output has no extension or an unknown extension, error with a clear message
+   - Default filename (when --output is omitted) still uses .png
+   - Python API: keep `fmt` parameter but also infer from `save_path` extension if `fmt` is not explicitly set. Explicit `fmt` wins if both are provided.
+
+Features:
+1. `--saturation` flag on `idaes-props plot` and `saturation` kwarg on `plot_property()` that overlays the component's saturation curve.
+2. `--output <file>` flag on `idaes-props multi` and `range` subcommands that writes the DataFrame to CSV or JSON based on extension.
+3. Plot CLI infers output format from filename extension; `--format` is removed or deprecated.
+
+Anticipated issues/notes:
+1. Saturation curve range: need to query the component's triple-point and critical-point temperatures. These are available as `temperature_sat` at the triple point and `temperature_crit` / `pressure_crit`. Fall back to a reasonable default range if the properties are missing.
+2. Saturation curve axes: only overlay when the plot axes match — i.e. the x-axis is temperature or pressure, and the y-axis is the other. For property-vs-T or property-vs-P plots where y is not P/T, emit a warning and skip.
+3. CSV precision: pandas default to_csv() uses repr-level precision, which is usually fine. Don't force a specific float format — users can post-process if needed.
+4. Multi-component saturation overlays: if plotting multiple components, draw a saturation curve per component in the matching color. Label each.
+5. --format removal: this is a breaking CLI change for anyone using --format explicitly. Remove cleanly (not a deprecation warning) since the project is pre-1.0.
+6. Extension parsing: use `os.path.splitext` and a whitelist of supported extensions. Lowercase the extension for comparison.
+
+Suggested function signature changes:
+    # plot_property — new saturation kwarg, fmt becomes optional
+    def plot_property(
+        component,
+        property_name,
+        temperatures,
+        pressures,
+        num_points=50,
+        temperature_unit=pyunits.K,
+        pressure_unit=pyunits.Pa,
+        amount_basis="mole",
+        show=True,
+        save_path=None,
+        dpi=150,
+        fmt=None,              # None => infer from save_path extension, fallback "png"
+        saturation=False,      # NEW: overlay saturation curve
+    ) -> tuple[plt.Figure, pd.DataFrame]:
+
+    # New internal helper
+    def _compute_saturation_curve(component, amount_basis="mole", num_points=50):
+        """Returns (temperatures, pressures) along the saturation boundary."""
+
+Steps:
+[X] 1. Infer plot output format from filename extension
+      - In cli.py cmd_plot: parse extension from args.output (or default filename) and pass to plot_property
+      - Remove --format argument from plot subparser
+      - In plotter.py plot_property: make fmt=None default, infer from save_path extension using os.path.splitext
+      - Raise clear error if extension is missing or unsupported
+      - Update tests that currently pass --format; remove or switch to extension-based
+      - Update README.md plot section
+
+[ ] 2. Add CSV/JSON export to multi and range CLI subcommands
+      - Add --output argument to multi and range subparsers
+      - Create _write_dataframe() helper: infer format from extension (.csv / .json), call df.to_csv / df.to_json
+      - Unknown extension => clear error
+      - When --output is None, keep current print-to-terminal behavior
+      - Add tests for CSV and JSON output from both subcommands
+      - Update README.md CLI section
+
+[ ] 3. Add saturation curve computation helper
+      - Implement _compute_saturation_curve(component, amount_basis, num_points) in plotter.py
+      - Sweep temperature from triple-point to critical-point; query pressure_sat at each
+      - Returns (T_array, P_array) and optionally critical point (T_c, P_c)
+      - Use skip_failures-style error handling since triple/critical limits can be fuzzy
+      - Add unit test: curve is monotonic in T, starts near triple, ends near critical
+
+[ ] 4. Integrate saturation overlay into plot_property
+      - Add saturation=False kwarg to plot_property
+      - Detect axes: only overlay when (x=temperature, y=pressure) or (x=pressure, y=temperature) or when y is pressure_sat
+      - If axes don't match, log warning and skip overlay (don't raise)
+      - Draw dashed black curve; mark critical point with X
+      - For multi-component plots: one dashed curve per component, matching the component's color
+      - Add --saturation flag to CLI plot subcommand
+
+[ ] 5. Tests for saturation overlay
+      - Test saturation curve appears on a P-T plot (check for extra line with "saturation" label)
+      - Test critical point marker placed correctly
+      - Test overlay is skipped with warning when axes don't support it
+      - Test multi-component overlay draws one curve per component
+      - CLI test for --saturation flag
+
+[ ] 6. Documentation
+      - Update README.md: add --saturation and --output docs for plot, multi, range
+      - Add example_saturation.py to tests/ showing a P-T plot with saturation curve
+      - Note the breaking change: --format removed, use extension instead
+      - Update CLAUDE.md architecture section

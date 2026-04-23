@@ -1,4 +1,5 @@
 import logging
+import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,6 +18,27 @@ _COMPONENT_COLORS = [
     "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan",
 ]
 
+SUPPORTED_PLOT_FORMATS = {"png", "svg", "pdf"}
+
+
+def _infer_format(save_path: str) -> str:
+    """Infer plot file format from the save_path extension.
+
+    Raises ValueError if the extension is missing or unsupported.
+    """
+    ext = os.path.splitext(save_path)[1].lower().lstrip(".")
+    if not ext:
+        raise ValueError(
+            f"save_path '{save_path}' has no file extension. "
+            f"Include one of: {sorted(SUPPORTED_PLOT_FORMATS)}."
+        )
+    if ext not in SUPPORTED_PLOT_FORMATS:
+        raise ValueError(
+            f"Unsupported plot format '.{ext}'. "
+            f"Must be one of: {sorted(SUPPORTED_PLOT_FORMATS)}."
+        )
+    return ext
+
 
 def plot_property(
     component,
@@ -30,7 +52,7 @@ def plot_property(
     show: bool = True,
     save_path: str = None,
     dpi: int = 150,
-    fmt: str = "png",
+    fmt: str = None,
 ) -> tuple:
     """Plot a thermodynamic property over a temperature or pressure range.
 
@@ -61,8 +83,9 @@ def plot_property(
         If provided, save the figure to this path.
     dpi : int
         Resolution for saved figures.
-    fmt : str
-        File format when saving ("png", "svg", "pdf").
+    fmt : str or None
+        File format when saving ("png", "svg", "pdf"). If None (default),
+        the format is inferred from the *save_path* extension.
 
     Returns
     -------
@@ -160,7 +183,8 @@ def plot_property(
         )
 
     if save_path:
-        fig.savefig(save_path, format=fmt, dpi=dpi, bbox_inches="tight")
+        effective_fmt = fmt if fmt is not None else _infer_format(save_path)
+        fig.savefig(save_path, format=effective_fmt, dpi=dpi, bbox_inches="tight")
         logger.info(f"Plot saved to {save_path}")
 
     if show:

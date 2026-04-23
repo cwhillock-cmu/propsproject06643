@@ -247,7 +247,7 @@ fig, df = plot_property(
 - `show` (bool) -- If True (default), display the plot with `plt.show()`
 - `save_path` (str or None) -- If provided, save the figure to this path
 - `dpi` (int) -- Resolution for saved figures (default: 150)
-- `fmt` (str) -- File format: `"png"` (default), `"svg"`, `"pdf"`
+- `fmt` (str or None) -- File format: `"png"`, `"svg"`, or `"pdf"`. If `None` (default), inferred from the `save_path` extension.
 
 **Returns:** `(matplotlib.figure.Figure, pd.DataFrame)`
 
@@ -303,7 +303,7 @@ Generates a plot of a property over a temperature or pressure sweep and saves it
 idaes-props plot co2 enth_mol -T 280:320:10 -P 101325
 
 # Isothermal sweep with units, saved as SVG
-idaes-props plot co2 dens_mass -T 25 -P 1,5,10,50,100 --temperature-unit C --pressure-unit bar --basis mass --format svg --output co2_density.svg
+idaes-props plot co2 dens_mass -T 25 -P 1,5,10,50,100 --temperature-unit C --pressure-unit bar --basis mass --output co2_density.svg
 
 # Phase-indexed property
 idaes-props plot co2 visc_d_phase -T 280:450:10 -P 10000000
@@ -318,8 +318,7 @@ idaes-props plot co2 enth_mol -T 280:400:20 -P 101325 --components butane propan
 | Option | Values | Default | Description |
 |---|---|---|---|
 | `--components` | space-separated names | none | Additional components to overlay |
-| `--output` | filename | `{component}_{property}.{format}` | Output file path |
-| `--format` | `png`, `svg`, `pdf` | `png` | Output file format |
+| `--output` | filename with extension (`.png`, `.svg`, `.pdf`) | `{component}_{property}.png` | Output file path; format is inferred from the extension |
 | `--dpi` | integer | `150` | Resolution for raster formats |
 
 ### `list-components` -- List Supported Components
